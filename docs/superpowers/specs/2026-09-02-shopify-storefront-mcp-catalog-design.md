@@ -32,7 +32,7 @@ A focused `shopifyCatalog` module owns all JSON-RPC communication. It:
 - Posts to `https://redaifoxes.myshopify.com/api/ucp/mcp` with a unique request ID and a 7-second abort timeout.
 - Sends `search_catalog` with the category contract above and `get_product` with a product ID and requested option selections.
 - Validates the JSON-RPC envelope, UCP status, internal pagination responses, product ID, and normalized product shape before returning it.
-- Limits list responses to 12 products and product-ID input to one non-empty Shopify GID or opaque identifier no longer than 256 characters.
+- Returns every normalized product in the requested category and limits product-ID input to one non-empty Shopify GID or opaque identifier no longer than 256 characters.
 - Converts monetary fields to `{ amountMinor, currency }`; display uses `Intl.NumberFormat`, while canvas totals add minor units only within one currency.
 - Emits stable, safe error codes only: `invalid_category` (400), `product_not_found` (404), and `catalog_unavailable` (502). Upstream URLs, bodies, and stack traces are never returned.
 
@@ -43,7 +43,7 @@ Catalog-list results are cached for 60 seconds (maximum 128 entries); product de
 `GET /api/catalog?slot=top` returns the complete normalized category result as either:
 
 ```ts
-{ source: "shopify"; products: CatalogCard[]; nextCursor?: string }
+{ source: "shopify"; products: CatalogCard[] }
 ```
 
 or a safe error. A successful empty array remains `source: "shopify"`. A failed Shopify request returns 502; only then does the browser render a separate static `source: "demo"` fallback with an explicit unavailable notice.

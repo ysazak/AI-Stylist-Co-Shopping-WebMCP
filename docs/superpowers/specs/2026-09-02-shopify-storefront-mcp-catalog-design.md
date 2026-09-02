@@ -36,7 +36,7 @@ A focused `shopifyCatalog` module owns all JSON-RPC communication. It:
 - Converts monetary fields to `{ amountMinor, currency }`; display uses `Intl.NumberFormat`, while canvas totals add minor units only within one currency.
 - Emits stable, safe error codes only: `invalid_category` (400), `product_not_found` (404), and `catalog_unavailable` (502). Upstream URLs, bodies, and stack traces are never returned.
 
-Catalog-list results are cached for 60 seconds (maximum 128 entries); product details and availability are cached for 15 seconds (maximum 256 entries). Cache keys include category/product ID, buyer context, canonical selected options, and UCP pagination cursor. Errors, malformed results, and unavailable responses are never cached. Cached availability is labelled “last checked” and never treated as a reservation.
+Catalog-list results are cached for 60 seconds (maximum 128 entries); product details and availability are cached for 15 seconds (maximum 256 entries). Cache keys include category/product ID, buyer context, canonical selected options, . Errors, malformed results, and unavailable responses are never cached. Cached availability is labelled “last checked” and never treated as a reservation.
 
 ## Internal API contract
 
@@ -74,7 +74,7 @@ The try-on route accepts up to four normalized selected-item snapshots, not only
 
 Two read-only tools use the same server client through the internal API, log a `read` activity entry, and return the normalized safe shapes:
 
-- `get_shopify_category_products` input `{ slot: "top" | "bottom" | "shoes" | "accessory", cursor?: string }`; output up to 12 `CatalogCard` values, `nextCursor`, source, or `{ ok: false, code }`.
+- `get_shopify_category_products` input `{ slot: "top" | "bottom" | "shoes" | "accessory", cursor?: string }`; output all normalized `CatalogCard` values, source, or `{ ok: false, code }`.
 - `get_shopify_product_details` input `{ productId: string, selected?: Array<{ name: string; label: string }> }`; output one `CatalogProduct` or `{ ok: false, code }`.
 
 Existing write tools gain explicit schemas. Candidate lists accept `productRefs: Array<{ source: "demo" | "shopify"; productId: string }>` (maximum 12), which hydrate only validated, slot-classified candidates. Placement accepts `{ slot, productRef: { source, productId }, variantId?: string, reason }`; demo products reject `variantId`, while Shopify products require it. A Shopify placement calls the detail route, verifies the requested variant belongs to that product and is purchasable, then writes a source-qualified registry key and snapshot. It rejects arbitrary product/variant pairs, incompatible slots, and shopper locks. All writes log activity and return no upstream Shopify payloads.

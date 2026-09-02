@@ -19,13 +19,13 @@ Integrate live read-only catalog discovery from `redaifoxes.myshopify.com` into 
 
 - Target `https://redaifoxes.myshopify.com/api/ucp/mcp`.
 - Define the profile URL as a server constant.
-- Create typed JSON-RPC request helpers for `search_catalog` and `get_product`; include `meta.ucp-agent.profile`, unique request IDs, the NL/en buyer context, pagination cap of 12, and a seven-second abort timeout.
+- Create typed JSON-RPC request helpers for `search_catalog` and `get_product`; include `meta.ucp-agent.profile`, unique request IDs, the NL/en buyer context, no pagination, and a seven-second abort timeout.
 - Map canvas slots to these exact query values:
   - `top` → `Clothing Tops`
   - `bottom` → `Pants`
   - `shoes` → `Shoes`
   - `accessory` → `Clothing Accessories`
-- Validate JSON-RPC/UCP envelopes, response IDs, product IDs, field types, money minor units/currency, and bounded pagination.
+- Validate JSON-RPC/UCP envelopes, response IDs, product IDs, field types, money minor units/currency, and complete category responses.
 - Normalize merchant text before use: Unicode normalization, remove controls, collapse whitespace, and cap length. Accept images only from HTTPS Shopify CDN or the configured shop domain.
 - Classify results from their Shopify product type/taxonomy category against the configured mapping. Omit unclassified or mismatched items.
 - Implement bounded in-memory cache: lists 60 seconds / 128 entries; details 15 seconds / 256 entries; never cache errors.
@@ -34,7 +34,7 @@ Integrate live read-only catalog discovery from `redaifoxes.myshopify.com` into 
 
 **New files:** `app/api/catalog/route.ts`, `app/api/catalog/product/route.ts`
 
-- `GET /api/catalog?slot=<slot>&cursor=<optional>` validates the slot and returns normalized Shopify cards with optional next cursor.
+- `GET /api/catalog?slot=<slot>` validates the slot and returns normalized Shopify cards with all normalized category cards.
 - `GET /api/catalog/product?id=<id>&selected=<optional-json>` bounds and parses selected options; allow at most three unique `{name,label}` selections, each 1–80 characters and total encoded size no more than 2,048 characters.
 - Canonicalize option selections before the detail cache lookup and reject unknown/duplicate selections.
 - Return only normalized fields. Use `400 invalid_category`, `404 product_not_found`, and `502 catalog_unavailable`; do not expose Shopify response data, endpoint details, or stack traces.

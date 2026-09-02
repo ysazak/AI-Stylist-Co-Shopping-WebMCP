@@ -16,9 +16,9 @@ Live Shopify candidate cards and canvas items render the stored primary image. M
 
 The browser sends at most four snapshotted image URLs with normalized garment text. The try-on route treats URLs as untrusted and fetches them only server-side under these rules:
 
-- Parse URLs with the platform URL parser; require HTTPS and an exact hostname of `cdn.shopify.com` or `redaifoxes.myshopify.com`.
+- Parse URLs with the platform URL parser; require HTTPS on port 443 only and an exact hostname of `cdn.shopify.com` or `redaifoxes.myshopify.com`.
 - Use `redirect: "error"`; redirects are rejected rather than followed.
-- Resolve the hostname and reject private, loopback, link-local, multicast, and reserved IP addresses before the fetch.
+- Resolve every hostname/CNAME address and reject private, loopback, link-local, multicast, and reserved IP addresses. Use an HTTP client that pins the connection to a validated public address while retaining the original HTTPS SNI/Host, preventing DNS rebinding between validation and fetch.
 - Send no credentials; use an eight-second timeout; cap each response at 5 MB and the combined payload at 12 MB.
 - Accept only `image/jpeg`, `image/png`, or `image/webp`, validate the file signature against the content type, and reject non-image or error responses.
 - Convert accepted image bytes to Gemini inline parts with the validated MIME type. If one or more image fetches fail, retain text for those garments; if all fail, allow the existing text-only generation path.

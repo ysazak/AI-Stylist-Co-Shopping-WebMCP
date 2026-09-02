@@ -36,7 +36,7 @@ A focused `shopifyCatalog` module owns all JSON-RPC communication. It:
 - Converts monetary fields to `{ amountMinor, currency }`; display uses `Intl.NumberFormat`, while canvas totals add minor units only within one currency.
 - Emits stable, safe error codes only: `invalid_category` (400), `product_not_found` (404), and `catalog_unavailable` (502). Upstream URLs, bodies, and stack traces are never returned.
 
-Responses use a short cache keyed by category/product ID, buyer context, selection, and UCP pagination cursor. Product availability is not claimed beyond the response time.
+Catalog-list results are cached for 60 seconds (maximum 128 entries); product details and availability are cached for 15 seconds (maximum 256 entries). Cache keys include category/product ID, buyer context, canonical selected options, and UCP pagination cursor. Errors, malformed results, and unavailable responses are never cached. Cached availability is labelled “last checked” and never treated as a reservation.
 
 ## Internal API contract
 
@@ -48,19 +48,19 @@ Responses use a short cache keyed by category/product ID, buyer context, selecti
 
 or a safe error. A successful empty array remains `source: "shopify"`. A failed Shopify request returns 502; only then does the browser render a separate static `source: "demo"` fallback with an explicit unavailable notice.
 
-`GET /api/catalog/product?id=<encoded-id>&selected=<encoded-json>` returns:
+`GET /api/catalog/product?id=<encoded-id>&selected=<encoded-json>` accepts at most 2,048 URL-decoded characters for `selected`: a JSON array of at most 3 `{ name, label }` objects, where each trimmed value is 1–80 characters. Invalid JSON, duplicate names, unknown option names/labels, and non-string fields return 400. The client normalizes and sorts selections by option name before cache-key construction. It returns:
 
 ```ts
 { source: "shopify"; product: CatalogProduct }
 ```
 
-`CatalogCard` contains `id`, `title`, `image`, `price`, `currency`, `available`, and the mapped canvas slot. `CatalogProduct` additionally contains description, options, variants, each variant's ID, option values, price, currency, image, and purchasability. No raw Shopify response is sent to the browser.
+`CatalogCard` contains `id`, `title`, `image`, `price`, `currency`, `available`, and the mapped canvas slot. `CatalogProduct` additionally contains description, options, variants, each variant's ID, option values, price, currency, image, and purchasability. No raw Shopify response is sent to the browser. Merchant titles, descriptions, option labels, and materials are Unicode-normalized, control characters stripped, whitespace collapsed, and length-limited before UI or prompt use. Gemini receives labelled, quoted data fields with an instruction to treat them as product data, never instructions. Product images must be HTTPS and from `cdn.shopify.com` or the configured shop domain; invalid images use the existing neutral product-art fallback.
 
 ## Runtime catalog and canvas state
 
 The static `Product` data is generalized into one normalized runtime product type. The client maintains a hydrated product registry keyed by `source:id` and a canvas item stores the resolved registry key, slot, source, lock status, selected variant ID, and immutable price snapshot. Existing static candidates use `source: "demo"`; Shopify candidates use `source: "shopify"`.
 
-All product lookup, slot compatibility, candidate validation, canvas rendering, totals, rejection, and try-on labels use this registry rather than `productById` alone. A Shopify product can therefore be shown, selected, replaced, locked, totalled, and included in a virtual try-on without being present in the legacy static array.
+All product lookup, slot compatibility, candidate validation, canvas rendering, totals, rejection, and try-on labels use this registry rather than `productById` alone. A Shopify product can therefore be shown, selected, replaced, locked, totalled, and included in a virtual try-on without being present in the legacy static array. Before a Shopify search result can become a candidate, `classifyProduct` must match its normalized Shopify product type or taxonomy category to the configured slot marker (`tops`, `trousers`, `shoes`, or `accessories`). Missing or mismatched classifications are omitted rather than assigned to the queried slot; a merchant mapping change requires a live validation test.
 
 ## Variant selection and inventory
 
@@ -77,7 +77,7 @@ Two read-only tools use the same server client through the internal API, log a `
 - `get_shopify_category_products` input `{ slot: "top" | "bottom" | "shoes" | "accessory", cursor?: string }`; output up to 12 `CatalogCard` values, `nextCursor`, source, or `{ ok: false, code }`.
 - `get_shopify_product_details` input `{ productId: string, selected?: Array<{ name: string; label: string }> }`; output one `CatalogProduct` or `{ ok: false, code }`.
 
-Existing write tools gain explicit schemas and resolve a requested live product through its selected purchasable variant before placement. They enforce the existing slot compatibility and shopper lock rules, log `write` activity, and return no upstream Shopify payloads.
+Existing write tools gain explicit schemas. Candidate lists accept `productRefs: Array<{ source: "demo" | "shopify"; productId: string }>` (maximum 12), which hydrate only validated, slot-classified candidates. Placement accepts `{ slot, productRef: { source, productId }, variantId?: string, reason }`; demo products reject `variantId`, while Shopify products require it. A Shopify placement calls the detail route, verifies the requested variant belongs to that product and is purchasable, then writes a source-qualified registry key and snapshot. It rejects arbitrary product/variant pairs, incompatible slots, and shopper locks. All writes log activity and return no upstream Shopify payloads.
 
 ## Verification
 

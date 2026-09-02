@@ -45,6 +45,17 @@ function detail(raw: unknown, slot: Slot): CatalogProduct | undefined {
   return { ...base, description: clean(first(product.description, product.description_html), 800) || undefined, options, variants };
 }
 async function cached<T>(key: string, ttl: number, fetcher: () => Promise<T>) { const item = cache.get(key); if (item && item.until > Date.now()) return item.value as T; const value = await fetcher(); if (cache.size > 256) cache.delete(cache.keys().next().value as string); cache.set(key, { until: Date.now() + ttl, value }); return value; }
-export async function listProducts(slot: Slot) { return cached(`list:${slot}`, 60_000, async () => { const response = await call("search_catalog", { catalog: { query: mapping[slot], context } }); return asArray(response.products).map((item) => card(item, slot)).filter((item): item is CatalogCard => Boolean(item)); }); }
+export async function listProducts(slot: Slot) {
+  return cached(`list:${slot}`, 60_000, async () => {
+    const results: CatalogCard[] = []; const seenCursors = new Set<string>(); let cursor: string | undefined;
+    do {
+      const response = await call("search_catalog", { catalog: { query: mapping[slot], context, pagination: { limit: 100, ...(cursor ? { cursor } : {}) } } });
+      results.push(...asArray(response.products).map((item) => card(item, slot)).filter((item): item is CatalogCard => Boolean(item)));
+      const pagination = response.pagination as Record<string, unknown> | undefined; const next = clean(pagination?.next_cursor ?? pagination?.cursor ?? pagination?.end_cursor, 512);
+      if (!pagination?.has_next_page || !next || seenCursors.has(next)) break; seenCursors.add(next); cursor = next;
+    } while (cursor);
+    return results;
+  });
+}
 export async function getProduct(productId: string, slot: Slot) { return cached(`product:${slot}:${productId}`, 15_000, async () => { const response = await call("get_product", { catalog: { id: productId, context } }); const raw = (response.product ?? asArray(response.products)[0]); const result = detail(raw, slot); if (!result) throw new Error("product_not_found"); return result; }); }
 export const isSlot = (value: string): value is Slot => value === "top" || value === "bottom" || value === "shoes" || value === "accessory";

@@ -18,10 +18,10 @@ The four merchant-provided identifiers are used as `catalog.query` terms, not un
 
 | Canvas slot | Display label | Shopify `catalog.query` |
 | --- | --- | --- |
-| `top` | Upper layer | `tops` |
-| `bottom` | Trousers | `trousers` |
-| `shoes` | Footwear | `shoes` |
-| `accessory` | Finishing touches | `accessories` |
+| `top` | Upper layer | `Clothing Tops` |
+| `bottom` | Trousers | `Pants` |
+| `shoes` | Footwear | `Shoes` |
+| `accessory` | Finishing touches | `Clothing Accessories` |
 
 Each request sends `catalog: { query, context, pagination: { limit: 12 } }` and `meta: { "ucp-agent": { profile } }`. The initial buyer context is `address_country: "NL"` and `language: "en"`; it is part of the cache key. The server returns the merchant's product currency unchanged and the UI derives totals only when all selected items use that same currency. Different currencies show an unavailable total rather than a misleading conversion.
 
@@ -60,7 +60,7 @@ or a safe error. A successful empty array remains `source: "shopify"`. A failed 
 
 The static `Product` data is generalized into one normalized runtime product type. The client maintains a hydrated product registry keyed by `source:id` and a canvas item stores the resolved registry key, slot, source, lock status, selected variant ID, and immutable price snapshot. Existing static candidates use `source: "demo"`; Shopify candidates use `source: "shopify"`.
 
-All product lookup, slot compatibility, candidate validation, canvas rendering, totals, rejection, and try-on labels use this registry rather than `productById` alone. A Shopify product can therefore be shown, selected, replaced, locked, totalled, and included in a virtual try-on without being present in the legacy static array. Before a Shopify search result can become a candidate, `classifyProduct` must match its normalized Shopify product type or taxonomy category to the configured slot marker (`tops`, `trousers`, `shoes`, or `accessories`). Missing or mismatched classifications are omitted rather than assigned to the queried slot; a merchant mapping change requires a live validation test.
+All product lookup, slot compatibility, candidate validation, canvas rendering, totals, rejection, and try-on labels use this registry rather than `productById` alone. A Shopify product can therefore be shown, selected, replaced, locked, totalled, and included in a virtual try-on without being present in the legacy static array. Before a Shopify search result can become a candidate, `classifyProduct` must match its normalized Shopify product type or taxonomy category to the configured slot marker (`Clothing Tops`, `Pants`, `Shoes`, or `Clothing Accessories`). Missing or mismatched classifications are omitted rather than assigned to the queried slot; a merchant mapping change requires a live validation test.
 
 ## Variant selection and inventory
 

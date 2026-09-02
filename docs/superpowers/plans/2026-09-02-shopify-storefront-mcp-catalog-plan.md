@@ -19,7 +19,7 @@ Integrate live read-only catalog discovery from `redaifoxes.myshopify.com` into 
 
 - Target `https://redaifoxes.myshopify.com/api/ucp/mcp`.
 - Define the profile URL as a server constant.
-- Create typed JSON-RPC request helpers for `search_catalog` and `get_product`; include `meta.ucp-agent.profile`, unique request IDs, the NL/en buyer context, no pagination, and a seven-second abort timeout.
+- Create typed JSON-RPC request helpers for `search_catalog` and `get_product`; include `meta.ucp-agent.profile`, unique request IDs, the NL/en buyer context, internal page traversal and aggregation, and a seven-second abort timeout per Shopify request.
 - Map canvas slots to these exact query values:
   - `top` → `Clothing Tops`
   - `bottom` → `Pants`
@@ -34,7 +34,7 @@ Integrate live read-only catalog discovery from `redaifoxes.myshopify.com` into 
 
 **New files:** `app/api/catalog/route.ts`, `app/api/catalog/product/route.ts`
 
-- `GET /api/catalog?slot=<slot>` validates the slot and returns normalized Shopify cards with all normalized category cards.
+- `GET /api/catalog?slot=<slot>` validates the slot and returns normalized Shopify cards with the complete normalized category result.
 - `GET /api/catalog/product?id=<id>&selected=<optional-json>` bounds and parses selected options; allow at most three unique `{name,label}` selections, each 1–80 characters and total encoded size no more than 2,048 characters.
 - Canonicalize option selections before the detail cache lookup and reject unknown/duplicate selections.
 - Return only normalized fields. Use `400 invalid_category`, `404 product_not_found`, and `502 catalog_unavailable`; do not expose Shopify response data, endpoint details, or stack traces.
@@ -73,7 +73,7 @@ Integrate live read-only catalog discovery from `redaifoxes.myshopify.com` into 
 **Files:** `app/page.tsx`, `app/types.d.ts`
 
 - Give every existing WebMCP tool an explicit input schema.
-- Add `get_shopify_category_products` with a validated slot and optional cursor; return up to twelve normalized cards.
+- Add `get_shopify_category_products` with a validated slot and return the complete normalized category result.
 - Add `get_shopify_product_details` with a bounded product ID and selected-option values; return one normalized detail object.
 - Update `set_outfit_candidates` to accept up to twelve source-qualified product references.
 - Update `replace_outfit_item` to accept `{ slot, productRef, variantId?, reason }`. For Shopify products, resolve details and verify that the exact requested variant belongs to the product, is purchasable, and matches the requested slot before writing the canvas.
@@ -83,7 +83,7 @@ Integrate live read-only catalog discovery from `redaifoxes.myshopify.com` into 
 
 **New test files / existing test setup as needed**
 
-- Add mocked MCP contract tests for valid list/detail, UCP tool error, malformed JSON, timeout, pagination, successful empty category, invalid category, missing product, unavailable product, option validation, and out-of-stock variants.
+- Add mocked MCP contract tests for valid list/detail, UCP tool error, malformed JSON, timeout, internal multi-page aggregation, successful empty category, invalid category, missing product, unavailable product, option validation, and out-of-stock variants.
 - Test cache TTL/keys and error non-caching.
 - Test mapping/classification, normalization, image allowlisting, money snapshots, mixed-currency totals, demo fallback, and no fallback for legitimate empty Shopify results.
 - Test WebMCP read tools plus a complete live-product replacement path, including bad variant rejection and lock protection.

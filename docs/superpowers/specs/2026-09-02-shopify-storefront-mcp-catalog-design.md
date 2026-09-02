@@ -23,7 +23,7 @@ The four merchant-provided identifiers are used as `catalog.query` terms, not un
 | `shoes` | Footwear | `Shoes` |
 | `accessory` | Finishing touches | `Clothing Accessories` |
 
-Each request sends `catalog: { query, context, pagination: { limit: 12 } }` and `meta: { "ucp-agent": { profile } }`. The initial buyer context is `address_country: "NL"` and `language: "en"`; it is part of the cache key. The server returns the merchant's product currency unchanged and the UI derives totals only when all selected items use that same currency. Different currencies show an unavailable total rather than a misleading conversion.
+The server requests Shopify pages internally, follows each returned cursor until the category is exhausted, aggregates the full normalized category result, and sends `meta: { "ucp-agent": { profile } }` on every request. The initial buyer context is `address_country: "NL"` and `language: "en"`; it is part of the cache key. The server returns the merchant's product currency unchanged and the UI derives totals only when all selected items use that same currency. Different currencies show an unavailable total rather than a misleading conversion.
 
 ## Server-only Shopify client
 
@@ -31,7 +31,7 @@ A focused `shopifyCatalog` module owns all JSON-RPC communication. It:
 
 - Posts to `https://redaifoxes.myshopify.com/api/ucp/mcp` with a unique request ID and a 7-second abort timeout.
 - Sends `search_catalog` with the category contract above and `get_product` with a product ID and requested option selections.
-- Validates the JSON-RPC envelope, UCP status, bounded pagination cursor, product ID, and normalized product shape before returning it.
+- Validates the JSON-RPC envelope, UCP status, internal pagination responses, product ID, and normalized product shape before returning it.
 - Limits list responses to 12 products and product-ID input to one non-empty Shopify GID or opaque identifier no longer than 256 characters.
 - Converts monetary fields to `{ amountMinor, currency }`; display uses `Intl.NumberFormat`, while canvas totals add minor units only within one currency.
 - Emits stable, safe error codes only: `invalid_category` (400), `product_not_found` (404), and `catalog_unavailable` (502). Upstream URLs, bodies, and stack traces are never returned.
@@ -40,7 +40,7 @@ Catalog-list results are cached for 60 seconds (maximum 128 entries); product de
 
 ## Internal API contract
 
-`GET /api/catalog?slot=top` returns either:
+`GET /api/catalog?slot=top` returns the complete normalized category result as either:
 
 ```ts
 { source: "shopify"; products: CatalogCard[]; nextCursor?: string }
@@ -74,7 +74,7 @@ The try-on route accepts up to four normalized selected-item snapshots, not only
 
 Two read-only tools use the same server client through the internal API, log a `read` activity entry, and return the normalized safe shapes:
 
-- `get_shopify_category_products` input `{ slot: "top" | "bottom" | "shoes" | "accessory", cursor?: string }`; output all normalized `CatalogCard` values, source, or `{ ok: false, code }`.
+- `get_shopify_category_products` input `{ slot: "top" | "bottom" | "shoes" | "accessory" }`; output all normalized `CatalogCard` values, source, or `{ ok: false, code }`.
 - `get_shopify_product_details` input `{ productId: string, selected?: Array<{ name: string; label: string }> }`; output one `CatalogProduct` or `{ ok: false, code }`.
 
 Existing write tools gain explicit schemas. Candidate lists accept `productRefs: Array<{ source: "demo" | "shopify"; productId: string }>` (maximum 12), which hydrate only validated, slot-classified candidates. Placement accepts `{ slot, productRef: { source, productId }, variantId?: string, reason }`; demo products reject `variantId`, while Shopify products require it. A Shopify placement calls the detail route, verifies the requested variant belongs to that product and is purchasable, then writes a source-qualified registry key and snapshot. It rejects arbitrary product/variant pairs, incompatible slots, and shopper locks. All writes log activity and return no upstream Shopify payloads.
@@ -82,7 +82,7 @@ Existing write tools gain explicit schemas. Candidate lists accept `productRefs:
 ## Verification
 
 1. Unit-test mapping, request construction (including profile metadata), buyer-context cache keys, money formatting/totals, GID limits, and product normalization.
-2. Mock JSON-RPC/UCP responses for list success, successful empty category, malformed response, tool error, timeout, pagination, unavailable product, required-options product, and out-of-stock variant.
+2. Mock JSON-RPC/UCP responses for list success, successful empty category, malformed response, tool error, timeout, internal multi-page aggregation, unavailable product, required-options product, and out-of-stock variant.
 3. Test API 400, 404, and 502 shapes and confirm a legitimate empty Shopify category never renders the demo fallback.
 4. Test shopper and WebMCP placement/replacement of a live product, including locks, variant price snapshots, canvas rendering, and try-on input.
 5. Live-test all four mapped queries after their merchant catalog categories contain products; verify detail and purchasable variants for at least one product per slot.

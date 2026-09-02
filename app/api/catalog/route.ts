@@ -1,0 +1,3 @@
+import { isSlot, listProducts } from "../../shopify/storefront-mcp";
+export const runtime = "nodejs";
+export async function GET(request: Request) { const slot = new URL(request.url).searchParams.get("slot") ?? ""; if (!isSlot(slot)) return Response.json({ error: "invalid_category" }, { status: 400 }); try { return Response.json({ source: "shopify", products: await listProducts(slot) }); } catch { return Response.json({ error: "catalog_unavailable" }, { status: 502 }); } }

@@ -8,7 +8,7 @@ Add two independent controls to the existing co-shopping page without changing t
 
 - Add a standalone fixed `ChatGPT` button beside the existing activity control.
 - Read the destination from `NEXT_PUBLIC_CHATGPT_URL`.
-- Validate an absolute `https:` URL before opening it in a new tab with `noopener,noreferrer` protections. Permit `http:` only for local development; reject relative, malformed, `javascript:`, and `data:` values.
+- Validate an absolute `https:` URL before rendering a standard new-tab link with `target="_blank"` and `rel="noopener noreferrer"`. Permit `http:` only for local development; reject relative, malformed, `javascript:`, and `data:` values.
 - If the variable is absent or invalid, render the control disabled with an explanatory accessible label.
 - Document the variable in `.env.example` without providing a real value.
 

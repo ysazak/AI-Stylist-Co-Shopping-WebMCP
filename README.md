@@ -20,7 +20,6 @@ Copy `.env.example` to `.env.local`:
 | `GEMINI_API_KEY`                                                     | For virtual try-on | Google AI Studio key used server-side by `/api/try-on`.                                                             |
 | `GEMINI_TRY_ON_MODEL`                                                | No                 | Gemini image model used for virtual try-on. Defaults to `gemini-3.1-flash-lite-image`.                              |
 | `NEXT_PUBLIC_CHATGPT_URL`                                            | No                 | Absolute `https://` URL for the "Open in ChatGPT" launch button.                                                    |
-| `BASIC_AUTH_ENABLED` / `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | No                 | Optional HTTP Basic Auth in front of the deployed site (`middleware.ts`). Disabled unless explicitly set to `true`. |
 
 ## Architecture
 

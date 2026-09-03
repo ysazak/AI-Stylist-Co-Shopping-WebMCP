@@ -48,7 +48,7 @@ function detail(raw: unknown, slot: Slot): CatalogProduct | undefined {
 }
 async function cached<T>(key: string, ttl: number, fetcher: () => Promise<T>) { const item = cache.get(key); if (item && item.until > Date.now()) return item.value as T; const value = await fetcher(); if (cache.size > 256) cache.delete(cache.keys().next().value as string); cache.set(key, { until: Date.now() + ttl, value }); return value; }
 async function topLevelProducts() {
-  return cached("list:apparel-and-accessories", 60_000, async () => {
+  return cached("list:apparel-and-accessories-v2", 60_000, async () => {
     const results: unknown[] = []; const seenCursors = new Set<string>(); let cursor: string | undefined;
     do {
       const response = await call("search_catalog", { catalog: { context, filters: { categories: [topLevelCategory] }, pagination: { limit: 100, ...(cursor ? { cursor } : {}) } } });

@@ -18,6 +18,7 @@ export type Product = {
   fit: string;
   material: string;
   image: string;
+  description?: string;
   scenes?: string[];
 };
 

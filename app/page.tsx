@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { fetchCatalogSlot, generateTryOnImage } from "./api-client";
 import { productById, Product, Slot, slotFor } from "./catalog";
-import type { CatalogCard } from "./shopify/storefront-mcp";
 import { Canvas } from "./components/Canvas";
 import { CandidateStudio } from "./components/CandidateStudio";
 import { GeneratedLookModal } from "./components/GeneratedLookModal";
@@ -109,9 +109,7 @@ export default function Home() {
       .filter((product): product is Product => Boolean(product))
       .map((product) => ({
         name: product.name,
-        color: product.color,
-        material: product.material,
-        fit: product.fit,
+        description: product.description,
         image: product.image,
       }));
   const lock = (slot: Slot) =>
@@ -124,21 +122,6 @@ export default function Home() {
         ),
       }),
     );
-  const reject = (id: string) => {
-    const p = lookupProduct(id);
-    if (!p) return;
-    human(`Human rejected ${p.name}`, (current) => ({
-      ...current,
-      rejectedProductIds: [...new Set([...current.rejectedProductIds, id])],
-      candidates: {
-        ...current.candidates,
-        [slotFor(p.category)]: current.candidates[slotFor(p.category)].filter(
-          (candidate) => candidate !== id,
-        ),
-      },
-    }));
-  };
-
   useEffect(() => {
     let cancelled = false;
     const categoryBySlot: Record<Slot, Product["category"]> = {
@@ -151,15 +134,9 @@ export default function Home() {
       setCatalogStatus("loading");
       try {
         const entries = await Promise.all(
-          slots.map(async ({ id }) => {
-            const response = await fetch(`/api/catalog?slot=${id}`);
-            const data = (await response.json()) as {
-              products?: CatalogCard[];
-            };
-            if (!response.ok || !data.products)
-              throw new Error("catalog_unavailable");
-            return [id, data.products] as const;
-          }),
+          slots.map(
+            async ({ id }) => [id, await fetchCatalogSlot(id)] as const,
+          ),
         );
         if (cancelled) return;
         const registry: Record<string, Product> = {};
@@ -183,6 +160,7 @@ export default function Home() {
               fit: "See options",
               material: card.productType ?? "Shopify catalog",
               image: card.image ?? "",
+              description: card.description,
               scenes: card.scenes,
             };
             candidates[slot].push(id);
@@ -271,23 +249,13 @@ export default function Home() {
     }
     setTryOn({ status: "loading" });
     try {
-      const response = await fetch("/api/try-on", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productIds,
-          products: tryOnProducts(state.items),
-          occasion: state.occasion,
-          budget: state.budget,
-        }),
+      const image = await generateTryOnImage({
+        productIds,
+        products: tryOnProducts(state.items),
+        occasion: state.occasion,
+        budget: state.budget,
       });
-      const data = (await response.json()) as {
-        image?: string;
-        error?: string;
-      };
-      if (!response.ok || !data.image)
-        throw new Error(data.error ?? "No image was returned.");
-      setTryOn({ status: "ready", image: data.image });
+      setTryOn({ status: "ready", image });
     } catch (error) {
       setTryOn({
         status: "error",
@@ -318,11 +286,9 @@ export default function Home() {
             activeSlot={state.activeSlot}
             catalogStatus={catalogStatus}
             visibleCandidateIds={visibleCandidateIds}
-            rejectedProductIds={state.rejectedProductIds}
             lookupProduct={lookupProduct}
             update={update}
             selectProduct={selectProduct}
-            reject={reject}
           />
           <Canvas
             items={state.items}
@@ -354,9 +320,8 @@ export default function Home() {
           <span>03 / LOOK EVOLVES</span>
         </div>
         <p>
-          Every lock, selection, rejection, occasion, and budget update belongs
-          to the same visible workspace your connected stylist can read and
-          revise.
+          Every lock, selection, occasion, and budget update belongs to the same
+          visible workspace your connected stylist can read and revise.
         </p>
       </section>
       <WorkspaceDrawers

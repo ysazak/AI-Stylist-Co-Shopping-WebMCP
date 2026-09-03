@@ -1,6 +1,6 @@
 # Make This Look Mine
 
-A co-shopping demo built for the [OpenAI WebMCP Challenge](https://openai.com/webmcp-challenge/). The shopper and a connected AI stylist act on **one visible outfit workspace**: every selection, rejection, lock, budget, occasion, and fitting-appointment update is live shared state — the agent never works from a hidden copy of the page.
+A co-shopping demo built for the [OpenAI WebMCP Challenge](https://openai.com/webmcp-challenge/). The shopper and a connected AI stylist act on **one visible outfit workspace**: every selection, lock, budget, occasion, and fitting-appointment update is live shared state — the agent never works from a hidden copy of the page.
 
 ## Run locally
 
@@ -18,6 +18,7 @@ Copy `.env.example` to `.env.local`:
 | Variable                                                             | Required           | Purpose                                                                                                             |
 | -------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------- |
 | `GEMINI_API_KEY`                                                     | For virtual try-on | Google AI Studio key used server-side by `/api/try-on`.                                                             |
+| `GEMINI_TRY_ON_MODEL`                                                | No                 | Gemini image model used for virtual try-on. Defaults to `gemini-3.1-flash-lite-image`.                              |
 | `NEXT_PUBLIC_CHATGPT_URL`                                            | No                 | Absolute `https://` URL for the "Open in ChatGPT" launch button.                                                    |
 | `BASIC_AUTH_ENABLED` / `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | No                 | Optional HTTP Basic Auth in front of the deployed site (`middleware.ts`). Disabled unless explicitly set to `true`. |
 
@@ -45,7 +46,7 @@ flowchart LR
 `app/shopify/storefront-mcp.ts` calls Shopify's Universal Commerce Protocol MCP endpoint with JSON-RPC `tools/call` requests (`search_catalog`, `get_product`), scoped to the _Apparel & Accessories_ taxonomy and mapped to canvas slots (top / bottom / shoes / accessory) by taxonomy category ID. Responses are sanitized (string cleaning, HTTPS + allow-listed `cdn.shopify.com` image hosts, price/scene-tag normalization) and briefly cached in memory. `app/api/catalog/route.ts` and `app/api/catalog/product/route.ts` expose this as plain JSON (`GET /api/catalog?slot=...`, `GET /api/catalog/product?slot=...&id=...`) — the same endpoints the page's catalog loader and the `get_category_products` / `get_product_details` WebMCP tools both call — the tool names and descriptions stay backend-agnostic even though Shopify is the current source.
 
 **2. Virtual try-on — Gemini image generation**
-`app/api/try-on/route.ts` takes the selected outfit's product data (name, color, material, fit, and up to four Shopify image URLs) and the current occasion/budget, fetches the reference images server-side, and sends a text + image multimodal prompt to Gemini (`gemini-3-pro-image-preview` via `@google/genai`) requesting an image response. No shopper photo is ever uploaded — the model image is generated purely from product data — and the resulting `data:` URL is rendered directly in the try-on panel and the full-size look modal.
+`app/api/try-on/route.ts` takes the selected outfit's product data (name, description, and up to four Shopify image URLs) and the current occasion/budget, fetches the reference images server-side, and sends a text + image multimodal prompt to Gemini (`GEMINI_TRY_ON_MODEL`, defaulting to `gemini-3.1-flash-lite-image`, via `@google/genai`) requesting an image response. No shopper photo is ever uploaded — the model image is generated purely from product data — and the resulting `data:` URL is rendered directly in the try-on panel and the full-size look modal.
 
 **3. WebMCP — this app as an MCP _tool provider_ for the browser**
 `app/webmcp/tools.ts` defines all 16 tools, each with a real JSON Schema `inputSchema` (not just a prose description), bound to a set of live-workspace adapters. `app/page.tsx` registers them once per mount via `document.modelContext.registerTool(...)` and keeps a `live` ref mirroring the same React state the UI renders from, so a connected agent and the human shopper are editing one shared, visible workspace rather than two copies that can drift apart.
@@ -56,6 +57,7 @@ flowchart LR
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `app/workspace.ts`              | Shared workspace types, default state, slots/stores/dates, `money`/`log` helpers.                                       |
 | `app/components/*`              | UI: navigation, hero, stylist panel, candidate studio, canvas, try-on, appointment, activity/tools drawers, look modal. |
+| `app/api-client.ts`             | Every `fetch` call the app makes — to its own `/api/*` routes and to Shopify reference images — in one place.           |
 | `app/webmcp/tools.ts`           | Complete WebMCP tool definitions (schemas + handlers) and the registration function.                                    |
 | `app/webmcp/tool-definition.ts` | Small factory producing the exact object `document.modelContext.registerTool` and the tools drawer both consume.        |
 | `app/shopify/storefront-mcp.ts` | Shopify Storefront (UCP) MCP client — catalog search and product detail.                                                |

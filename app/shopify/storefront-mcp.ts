@@ -9,6 +9,7 @@ export type CatalogCard = {
   price?: Money;
   available: boolean;
   productType?: string;
+  description?: string;
   scenes: string[];
 };
 export type CatalogVariant = {
@@ -20,7 +21,6 @@ export type CatalogVariant = {
   image?: string;
 };
 export type CatalogProduct = CatalogCard & {
-  description?: string;
   options: { name: string; values: string[] }[];
   variants: CatalogVariant[];
 };
@@ -72,6 +72,14 @@ const safeImage = (value: unknown) => {
     return undefined;
   }
 };
+const productDescription = (product: Record<string, unknown>) =>
+  clean(
+    first(
+      product.description_html,
+      (product.description as Record<string, unknown> | undefined)?.html,
+    ),
+    800,
+  ) || undefined;
 const mediaImage = (value: unknown) => {
   const media = asArray(value)
     .map((item) => item as Record<string, unknown>)
@@ -206,6 +214,7 @@ function card(raw: unknown, slot: Slot): CatalogCard | undefined {
       (product.availability as Record<string, unknown> | undefined)
         ?.available !== false,
     productType: type || undefined,
+    description: productDescription(product),
   };
 }
 function detail(raw: unknown, slot: Slot): CatalogProduct | undefined {
@@ -257,14 +266,7 @@ function detail(raw: unknown, slot: Slot): CatalogProduct | undefined {
     .filter((option) => option.name);
   return {
     ...base,
-    description:
-      clean(
-        first(
-          product.description_html,
-          (product.description as Record<string, unknown> | undefined)?.html,
-        ),
-        800,
-      ) || undefined,
+    description: productDescription(product),
     options,
     variants,
   };

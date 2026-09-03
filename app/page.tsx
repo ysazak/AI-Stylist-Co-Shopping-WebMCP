@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { initialCandidates, productById, Slot, slotFor, Product } from "./catalog";
 import type { CatalogCard } from "./shopify/storefront-mcp";
 import { WorkspaceDrawers } from "./components/WorkspaceDrawers";
+import { defineWebMcpTool } from "./webmcp/tool-definition";
 
 type OutfitItem = { slot: Slot; productId: string; source: "human" | "agent"; locked: boolean };
 type Activity = { at: string; direction: "read" | "write" | "human"; name: string; detail: string };
@@ -87,7 +88,7 @@ export default function Home() {
       update((current) => log({ ...recipe(current), revision: current.revision + 1 }, "write", name, detail));
       return { ok: true, revision: live.current.revision + 1 };
     };
-    const tool = (name: string, description: string, execute: (input: Record<string, unknown>) => Promise<unknown>) => ({ name, description, inputSchema: { type: "object", properties: {} }, execute });
+    const tool = defineWebMcpTool;
     const tools = [
       tool("get_outfit_state", "Read the current shared outfit workspace, including human-selected items, AI picks, locked pieces, rejected products, budget, occasion, constraints, last human action and revision.", async () => { update((c) => log(c, "read", "get_outfit_state", `Read shared workspace at revision ${c.revision}`)); return read(); }),
       tool("get_visible_candidates", "Read the products currently visible in the candidate area, including IDs, prices, categories and recommendation status.", async () => { const c = live.current; update((x) => log(x, "read", "get_visible_candidates", `Read ${c.candidates[c.activeSlot].length} visible ${c.activeSlot} candidates`)); return c.candidates[c.activeSlot].map((id) => lookupProduct(id)).filter(Boolean); }),

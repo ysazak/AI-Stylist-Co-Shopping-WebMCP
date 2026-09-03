@@ -35,8 +35,8 @@ function card(raw: unknown, slot: Slot): CatalogCard | undefined {
   const product = raw as Record<string, unknown>; const id = clean(first(product.id, product.product_id, product.gid), 256); const title = clean(first(product.title, product.name), 180);
   if (!id || !title) return undefined;
   const type = clean(first(product.product_type, product.productType, product.category, product.taxonomy_category), 120);
-  const marker = mapping[slot].toLowerCase(); const details = `${type} ${asArray(product.tags).map((tag) => clean(tag)).join(" ")}`.toLowerCase();
-  if (details && !details.includes(marker) && !marker.includes(details)) return undefined;
+  const primaryCategory = (asArray(product.categories)[0] as Record<string, unknown> | undefined)?.value;
+  if (primaryCategory !== mapping[slot]) return undefined;
   const priceRange = (product.price_range ?? product.priceRange) as Record<string, unknown> | undefined; const price = money(product.price ?? priceRange?.min);
   return { id, title, slot, image: safeImage(first(product.image, product.featured_image)) ?? mediaImage(product.media), price, available: product.available !== false && product.available_for_sale !== false && (product.availability as Record<string, unknown> | undefined)?.available !== false, productType: type || undefined };
 }
@@ -48,7 +48,7 @@ function detail(raw: unknown, slot: Slot): CatalogProduct | undefined {
 }
 async function cached<T>(key: string, ttl: number, fetcher: () => Promise<T>) { const item = cache.get(key); if (item && item.until > Date.now()) return item.value as T; const value = await fetcher(); if (cache.size > 256) cache.delete(cache.keys().next().value as string); cache.set(key, { until: Date.now() + ttl, value }); return value; }
 async function topLevelProducts() {
-  return cached("list:apparel-and-accessories-v4", 60_000, async () => {
+  return cached("list:apparel-and-accessories-v5", 60_000, async () => {
     const results: unknown[] = []; const seenCursors = new Set<string>(); let cursor: string | undefined;
     do {
       const response = await call("search_catalog", { catalog: { filters: { categories: [topLevelCategory] } } });

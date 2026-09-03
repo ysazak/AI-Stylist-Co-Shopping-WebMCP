@@ -70,7 +70,7 @@ async function topLevelProducts() {
   return cached("list:apparel-and-accessories-v8", 0, async () => {
     const byId = new Map<string, unknown>(); const visited = new Set<string>(); let cursor: string | undefined; let hasNextPage = true; let page = 0;
     while (hasNextPage && page++ < 20) {
-      const pagination: Record<string, unknown> = { limit: 250 }; if (cursor) pagination.cursor = cursor;
+      const pagination: Record<string, unknown> = { limit: 100 }; if (cursor) pagination.cursor = cursor;
       const response = await call("search_catalog", { catalog: { filters: { categories: [topLevelCategory] }, pagination } });
       for (const product of asArray(response.products)) { const id = clean((product as Record<string, unknown>).id, 256); if (id) byId.set(id, product); }
       const metadata = response.pagination as Record<string, unknown> | undefined; const nextCursor = clean(metadata?.cursor, 4096);

@@ -25,6 +25,7 @@ export type WebMcpAdapters = {
   setShowTryOn: (value: boolean) => void;
   setTryOn: (value: TryOnState) => void;
   setShowAppointment: (value: boolean) => void;
+  setShowLookModal: (value: boolean) => void;
 };
 
 const slotIds = slots.map((slot) => slot.id);
@@ -40,6 +41,7 @@ export function registerWebMcpTools({
   setShowTryOn,
   setTryOn,
   setShowAppointment,
+  setShowLookModal,
 }: WebMcpAdapters): WebMcpTool[] {
   const read = () => ({ ...getWorkspace(), activity: undefined });
   const write = (
@@ -265,35 +267,6 @@ export function registerWebMcpTools({
       },
     ),
     tool(
-      "lock_outfit_item",
-      "Mark an outfit item as human-approved and prevent future agent revisions from replacing it. Input: slot.",
-      async (input) => {
-        const slot = input.slot as Slot;
-        if (
-          !slots.some((s) => s.id === slot) ||
-          !getWorkspace().items.some((i) => i.slot === slot)
-        )
-          return { ok: false, error: "There is no item to lock in that slot." };
-        return write("lock_outfit_item", `Locked ${slot}`, (c) => ({
-          ...c,
-          items: c.items.map((i) =>
-            i.slot === slot ? { ...i, locked: true } : i,
-          ),
-        }));
-      },
-      {
-        type: "object",
-        properties: {
-          slot: {
-            type: "string",
-            enum: slotIds,
-            description: "Canvas slot whose current item should be locked.",
-          },
-        },
-        required: ["slot"],
-      },
-    ),
-    tool(
       "set_outfit_constraint",
       "Update a shared shopping constraint such as budget, occasion, colour preference, formality or fit. Input: type and value.",
       async (input) => {
@@ -336,30 +309,6 @@ export function registerWebMcpTools({
           },
         },
         required: ["type", "value"],
-      },
-    ),
-    tool(
-      "explain_current_outfit",
-      "Update the visible stylist explanation describing why the current outfit works and the trade-offs caused by human choices. Input: explanation.",
-      async (input) => {
-        const explanation = String(input.explanation ?? "");
-        if (!explanation)
-          return { ok: false, error: "An explanation is required." };
-        return write(
-          "explain_current_outfit",
-          "Updated stylist explanation",
-          (c) => ({ ...c, explanation }),
-        );
-      },
-      {
-        type: "object",
-        properties: {
-          explanation: {
-            type: "string",
-            description: "Shopper-facing rationale for the current outfit.",
-          },
-        },
-        required: ["explanation"],
       },
     ),
     tool(
@@ -422,40 +371,31 @@ export function registerWebMcpTools({
       },
     ),
     tool(
-      "set_appointment_slot",
-      "Choose an available fitting date and timeslot within the next seven days. Input: date (YYYY-MM-DD), time (HH:MM).",
+      "set_appointment_date",
+      "Choose an available fitting date within the next seven days. Input: date (YYYY-MM-DD).",
       async (input) => {
         const date = String(input.date ?? "");
-        const time = String(input.time ?? "");
         const storeId = getWorkspace().appointment.storeId;
         if (!storeId)
           return {
             ok: false,
-            error: "Choose a store before choosing a fitting slot.",
+            error: "Choose a store before choosing a fitting date.",
           };
-        if (
-          !appointmentDates.some((item) => item.value === date) ||
-          !slotsFor(storeId, date).includes(time)
-        )
+        if (!appointmentDates.some((item) => item.value === date))
           return {
             ok: false,
-            error:
-              "Choose an available time between 10:00 and 20:00 in the next seven days.",
+            error: "Choose an available date in the next seven days.",
           };
         setShowAppointment(true);
-        return write(
-          "set_appointment_slot",
-          `${date} at ${time}`,
-          (workspace) => ({
-            ...workspace,
-            appointment: {
-              ...workspace.appointment,
-              date,
-              time,
-              confirmed: false,
-            },
-          }),
-        );
+        return write("set_appointment_date", date, (workspace) => ({
+          ...workspace,
+          appointment: {
+            ...workspace.appointment,
+            date,
+            time: "",
+            confirmed: false,
+          },
+        }));
       },
       {
         type: "object",
@@ -466,6 +406,40 @@ export function registerWebMcpTools({
             description:
               "Fitting date (YYYY-MM-DD) within the next seven days.",
           },
+        },
+        required: ["date"],
+      },
+    ),
+    tool(
+      "set_appointment_time",
+      "Choose an available fitting timeslot for the already-chosen store and date. Input: time (HH:MM).",
+      async (input) => {
+        const time = String(input.time ?? "");
+        const { storeId, date } = getWorkspace().appointment;
+        if (!storeId || !date)
+          return {
+            ok: false,
+            error: "Choose a store and date before choosing a fitting time.",
+          };
+        if (!slotsFor(storeId, date).includes(time))
+          return {
+            ok: false,
+            error:
+              "Choose an available time between 10:00 and 20:00 for the chosen store and date.",
+          };
+        setShowAppointment(true);
+        return write("set_appointment_time", time, (workspace) => ({
+          ...workspace,
+          appointment: {
+            ...workspace.appointment,
+            time,
+            confirmed: false,
+          },
+        }));
+      },
+      {
+        type: "object",
+        properties: {
           time: {
             type: "string",
             pattern: "^[0-2][0-9]:[0-5][0-9]$",
@@ -473,7 +447,7 @@ export function registerWebMcpTools({
               "Fitting time (HH:MM) available for the chosen store and date.",
           },
         },
-        required: ["date", "time"],
+        required: ["time"],
       },
     ),
     tool(
@@ -555,21 +529,6 @@ export function registerWebMcpTools({
       },
     ),
     tool(
-      "cancel_appointment",
-      "Clear the current mock fitting appointment reservation.",
-      async () => {
-        setShowAppointment(true);
-        return write(
-          "cancel_appointment",
-          "Appointment cancelled",
-          (workspace) => ({
-            ...workspace,
-            appointment: { ...workspace.appointment, confirmed: false },
-          }),
-        );
-      },
-    ),
-    tool(
       "generate_virtual_try_on",
       "Generate and display a virtual try-on image of the static editorial model wearing the current shared outfit. Reads the live canvas selection, occasion and budget. No photo upload is used.",
       async () => {
@@ -599,6 +558,7 @@ export function registerWebMcpTools({
             budget: current.budget,
           });
           setTryOn({ status: "ready", image });
+          setShowLookModal(true);
           update((workspace) =>
             log(
               workspace,
@@ -609,7 +569,8 @@ export function registerWebMcpTools({
           );
           return {
             ok: true,
-            message: "Virtual try-on generated and displayed in the canvas.",
+            message:
+              "Virtual try-on generated and opened in the full look view.",
           };
         } catch (error) {
           const message =

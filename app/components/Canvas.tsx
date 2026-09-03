@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useRef } from "react";
 import { Product, Slot } from "../catalog";
 import {
   Appointment,
@@ -50,6 +51,17 @@ export function Canvas({
   showAppointment,
   appointment,
 }: Props) {
+  const appointmentRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showAppointment) return;
+    appointmentRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+    appointmentRef.current
+      ?.querySelector<HTMLElement>("select, input, textarea, button")
+      ?.focus();
+  }, [showAppointment]);
   return (
     <div className="canvas">
       <div className="sectionhead">
@@ -180,7 +192,9 @@ export function Canvas({
         />
       )}
       {showAppointment && (
-        <AppointmentPanel appointment={appointment} human={human} />
+        <div ref={appointmentRef}>
+          <AppointmentPanel appointment={appointment} human={human} />
+        </div>
       )}
     </div>
   );

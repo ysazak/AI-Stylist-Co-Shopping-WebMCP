@@ -51,8 +51,14 @@ export default function Home() {
   const [catalogStatus, setCatalogStatus] = useState<
     "loading" | "ready" | "empty" | "unavailable"
   >("loading");
+  const shopifyRegistryRef = useRef(shopifyRegistry);
+  shopifyRegistryRef.current = shopifyRegistry;
   const lookupProduct = (id?: string) =>
-    id ? (shopifyRegistry[id] ?? productById(id)) : undefined;
+    id
+      ? (shopifyRegistryRef.current[id] ??
+        shopifyRegistryRef.current[`shopify:${id}`] ??
+        productById(id))
+      : undefined;
   const live = useRef(state);
   live.current = state;
   const update = (recipe: (current: Workspace) => Workspace) =>
@@ -212,6 +218,7 @@ export default function Home() {
       setShowTryOn,
       setTryOn,
       setShowAppointment,
+      setShowLookModal,
     });
     setToolList(tools.map(({ name, description }) => ({ name, description })));
     const modelContext = document.modelContext;

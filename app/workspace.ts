@@ -26,7 +26,6 @@ export type Workspace = {
   budget: number;
   occasion: string;
   constraints: string[];
-  rejectedProductIds: string[];
   candidates: Record<Slot, string[]>;
   rationale: string;
   explanation: string;
@@ -43,9 +42,7 @@ export type TryOnState = {
 };
 export type TryOnProductPayload = {
   name: string;
-  color: string;
-  material: string;
-  fit: string;
+  description?: string;
   image: string;
 };
 
@@ -103,7 +100,6 @@ export const blank = (): Workspace => ({
   budget: 500,
   occasion: "Everyday",
   constraints: ["Relaxed silhouette", "Neutral palette"],
-  rejectedProductIds: [],
   candidates: initialCandidates,
   rationale: "A tonal starting point for relaxed Italian summer.",
   explanation: "Your choices set the direction.",

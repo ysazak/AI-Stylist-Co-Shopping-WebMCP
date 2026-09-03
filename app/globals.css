@@ -583,10 +583,6 @@ p {
 .productactions button:first-child {
   font-weight: 700;
 }
-.productactions .reject {
-  color: #85847b;
-  font-size: 9px;
-}
 .cream,
 .ivory,
 .chalk,

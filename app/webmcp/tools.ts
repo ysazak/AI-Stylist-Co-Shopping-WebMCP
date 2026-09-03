@@ -1,3 +1,8 @@
+import {
+  fetchCategoryProducts,
+  fetchProductDetails,
+  generateTryOnImage,
+} from "../api-client";
 import { Product, Slot, slotFor } from "../catalog";
 import {
   appointmentDates,
@@ -56,7 +61,7 @@ export function registerWebMcpTools({
   return [
     tool(
       "get_outfit_state",
-      "Read the current shared outfit workspace, including human-selected items, AI picks, locked pieces, rejected products, budget, occasion, constraints, last human action and revision.",
+      "Read the current shared outfit workspace, including human-selected items, AI picks, locked pieces, budget, occasion, constraints, last human action and revision.",
       async () => {
         update((c) =>
           log(
@@ -94,8 +99,7 @@ export function registerWebMcpTools({
         const slot = String(input.slot ?? "");
         if (!slots.some((item) => item.id === slot))
           return { ok: false, error: "Provide a valid canvas slot." };
-        const response = await fetch(`/api/catalog?slot=${slot}`);
-        const data = await response.json();
+        const result = await fetchCategoryProducts(slot);
         update((current) =>
           log(
             current,
@@ -104,9 +108,9 @@ export function registerWebMcpTools({
             `Read products for ${slot}`,
           ),
         );
-        return response.ok
-          ? data
-          : { ok: false, error: data.error ?? "catalog_unavailable" };
+        return result.ok
+          ? { source: result.source, products: result.products }
+          : { ok: false, error: result.error };
       },
       {
         type: "object",
@@ -132,16 +136,13 @@ export function registerWebMcpTools({
           productId.length > 256
         )
           return { ok: false, error: "Provide a valid slot and product ID." };
-        const response = await fetch(
-          `/api/catalog/product?slot=${slot}&id=${encodeURIComponent(productId)}`,
-        );
-        const data = await response.json();
+        const result = await fetchProductDetails(slot, productId);
         update((current) =>
           log(current, "read", "get_product_details", `Read product details`),
         );
-        return response.ok
-          ? data
-          : { ok: false, error: data.error ?? "catalog_unavailable" };
+        return result.ok
+          ? { source: result.source, product: result.product }
+          : { ok: false, error: result.error };
       },
       {
         type: "object",
@@ -182,10 +183,7 @@ export function registerWebMcpTools({
           (c) => ({
             ...c,
             activeSlot: slot,
-            candidates: {
-              ...c.candidates,
-              [slot]: ids.filter((id) => !c.rejectedProductIds.includes(id)),
-            },
+            candidates: { ...c.candidates, [slot]: ids },
             rationale: String(input.rationale ?? "Refined by your stylist."),
           }),
         );
@@ -594,23 +592,13 @@ export function registerWebMcpTools({
           ),
         );
         try {
-          const response = await fetch("/api/try-on", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              productIds,
-              products: tryOnProducts(current.items),
-              occasion: current.occasion,
-              budget: current.budget,
-            }),
+          const image = await generateTryOnImage({
+            productIds,
+            products: tryOnProducts(current.items),
+            occasion: current.occasion,
+            budget: current.budget,
           });
-          const data = (await response.json()) as {
-            image?: string;
-            error?: string;
-          };
-          if (!response.ok || !data.image)
-            throw new Error(data.error ?? "No image was returned.");
-          setTryOn({ status: "ready", image: data.image });
+          setTryOn({ status: "ready", image });
           update((workspace) =>
             log(
               workspace,

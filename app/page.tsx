@@ -6,7 +6,6 @@ import { productById, Product, Slot, slotFor } from "./catalog";
 import { Canvas } from "./components/Canvas";
 import { CandidateStudio } from "./components/CandidateStudio";
 import { GeneratedLookModal } from "./components/GeneratedLookModal";
-import { Hero } from "./components/Hero";
 import { Navigation } from "./components/Navigation";
 import { StylistPanel } from "./components/StylistPanel";
 import { WorkspaceDrawers } from "./components/WorkspaceDrawers";
@@ -38,9 +37,6 @@ export default function Home() {
   const [toolList, setToolList] = useState<ToolPreview[]>([]);
   const activityTrigger = useRef<HTMLButtonElement>(null);
   const toolsTrigger = useRef<HTMLButtonElement>(null);
-  const [webMcp, setWebMcp] = useState<"checking" | "ready" | "unavailable">(
-    "checking",
-  );
   const [tryOn, setTryOn] = useState<{
     status: "idle" | "loading" | "ready" | "error";
     image?: string;
@@ -219,10 +215,7 @@ export default function Home() {
     });
     setToolList(tools.map(({ name, description }) => ({ name, description })));
     const modelContext = document.modelContext;
-    if (!modelContext?.registerTool) {
-      setWebMcp("unavailable");
-      return;
-    }
+    if (!modelContext?.registerTool) return;
     try {
       tools.forEach((entry) => modelContext.registerTool!(entry));
       update((current) =>
@@ -232,9 +225,8 @@ export default function Home() {
           current,
         ),
       );
-      setWebMcp("ready");
     } catch {
-      setWebMcp("unavailable");
+      // Registration failure leaves the page usable without WebMCP tools.
     }
   }, []);
 
@@ -271,10 +263,8 @@ export default function Home() {
     <main>
       <div className="grain" />
       <Navigation onReset={() => setState(blank())} />
-      <Hero webMcp={webMcp} />
       <section id="workspace" className="workspace">
         <StylistPanel
-          explanation={state.explanation}
           occasion={state.occasion}
           lastHumanAction={state.lastHumanAction}
           budget={state.budget}
@@ -282,7 +272,6 @@ export default function Home() {
         />
         <div className="workbench">
           <CandidateStudio
-            rationale={state.rationale}
             activeSlot={state.activeSlot}
             catalogStatus={catalogStatus}
             visibleCandidateIds={visibleCandidateIds}
@@ -293,7 +282,6 @@ export default function Home() {
           <Canvas
             items={state.items}
             activeSlot={state.activeSlot}
-            revision={state.revision}
             budget={state.budget}
             total={total}
             lookupProduct={lookupProduct}
@@ -311,18 +299,6 @@ export default function Home() {
             appointment={state.appointment}
           />
         </div>
-      </section>
-      <section id="how" className="how">
-        <p className="eyebrow">THE SHARED-STATE LOOP</p>
-        <div>
-          <span>01 / YOU EDIT</span>
-          <span>02 / STYLIST READS</span>
-          <span>03 / LOOK EVOLVES</span>
-        </div>
-        <p>
-          Every lock, selection, occasion, and budget update belongs to the same
-          visible workspace your connected stylist can read and revise.
-        </p>
       </section>
       <WorkspaceDrawers
         drawer={drawer}

@@ -3,7 +3,6 @@ import { Product, Slot } from "../catalog";
 import { money, slots, Workspace } from "../workspace";
 
 type Props = {
-  rationale: string;
   activeSlot: Slot;
   catalogStatus: "loading" | "ready" | "empty" | "unavailable";
   visibleCandidateIds: string[];
@@ -13,7 +12,6 @@ type Props = {
 };
 
 export function CandidateStudio({
-  rationale,
   activeSlot,
   catalogStatus,
   visibleCandidateIds,
@@ -26,8 +24,9 @@ export function CandidateStudio({
       <div className="candidatehead">
         <div>
           <p className="eyebrow">CURATED FOR THE CANVAS</p>
-          <h2>Candidate studio</h2>
-          <p>{rationale}</p>
+          <div className="titlerow">
+            <h2>Mix &amp; Match Studio</h2>
+          </div>
         </div>
         <div className="tabs">
           {slots.map((slot) => (

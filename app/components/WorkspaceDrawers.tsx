@@ -30,7 +30,7 @@ export function WorkspaceDrawers({
   return (
     <>
       <div className="drawercontrols">
-        {chatGptUrl ? (
+        {chatGptUrl && (
           <a
             className="chatgptbutton"
             href={chatGptUrl}
@@ -39,14 +39,6 @@ export function WorkspaceDrawers({
           >
             ChatGPT ↗
           </a>
-        ) : (
-          <button
-            className="chatgptbutton"
-            disabled
-            aria-label="ChatGPT URL is not configured"
-          >
-            ChatGPT unavailable
-          </button>
         )}
         <button
           ref={toolsTrigger}

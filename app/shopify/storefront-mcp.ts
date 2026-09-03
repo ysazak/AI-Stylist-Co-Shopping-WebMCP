@@ -8,7 +8,7 @@ export type CatalogProduct = CatalogCard & { description?: string; options: { na
 const endpoint = "https://redaifoxes.myshopify.com/api/ucp/mcp";
 const profile = "https://shopify.dev/ucp/agent-profiles/examples/2026-08-25/valid-with-capabilities.json";
 const context = { address_country: "NL", language: "en" };
-const mapping: Record<Slot, string> = { top: "gid://shopify/TaxonomyCategory/aa-1-13-8", bottom: "gid://shopify/TaxonomyCategory/aa-1-12-3", shoes: "gid://shopify/TaxonomyCategory/aa-8-8", accessory: "gid://shopify/TaxonomyCategory/aa-2-17-1" };
+const mapping: Record<Slot, string[]> = { top: ["gid://shopify/TaxonomyCategory/aa-1-13-8"], bottom: ["gid://shopify/TaxonomyCategory/aa-1-12-3"], shoes: ["gid://shopify/TaxonomyCategory/aa-8-8"], accessory: ["gid://shopify/TaxonomyCategory/aa-2-17-1", "gid://shopify/TaxonomyCategory/aa-2-27"] };
 const topLevelCategory = "Apparel & Accessories";
 const cache = new Map<string, { until: number; value: unknown }>();
 const clean = (value: unknown, max = 240) => typeof value === "string" ? value.normalize("NFKC").replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim().slice(0, max) : "";
@@ -45,8 +45,9 @@ function card(raw: unknown, slot: Slot): CatalogCard | undefined {
   const product = raw as Record<string, unknown>; const id = clean(first(product.id, product.product_id, product.gid), 256); const title = clean(first(product.title, product.name), 180);
   if (!id || !title) return undefined;
   const type = clean(first(product.product_type, product.productType, product.category, product.taxonomy_category), 120);
-  const primaryCategory = (asArray(product.categories)[0] as Record<string, unknown> | undefined)?.value;
-  if (primaryCategory !== mapping[slot]) return undefined;
+  const categories = Array.isArray(product.categories) ? product.categories : [product.categories];
+  const categoryValues = categories.map((category) => typeof category === "string" ? category : (category as Record<string, unknown> | undefined)?.value).filter((value): value is string => typeof value === "string");
+  if (!categoryValues.some((value) => mapping[slot].includes(value))) return undefined;
   const priceRange = (product.price_range ?? product.priceRange) as Record<string, unknown> | undefined; const price = money(product.price ?? priceRange?.min);
   const scenes = sceneTags(product.tags);
   return { id, title, slot, scenes, image: safeImage(first(product.image, product.featured_image)) ?? mediaImage(product.media), price, available: product.available !== false && product.available_for_sale !== false && (product.availability as Record<string, unknown> | undefined)?.available !== false, productType: type || undefined };

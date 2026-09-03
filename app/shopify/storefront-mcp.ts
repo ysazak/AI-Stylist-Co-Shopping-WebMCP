@@ -17,6 +17,16 @@ const safeImage = (value: unknown) => { const raw = clean(value, 1000); try { co
 const mediaImage = (value: unknown) => { const media = asArray(value).map((item) => item as Record<string, unknown>).find((item) => item.type === "image" && typeof item.url === "string"); return safeImage(media?.url); };
 const money = (value: unknown): Money | undefined => { const raw = value as Record<string, unknown> | number | string | undefined; const amount = typeof raw === "object" && raw ? (raw.amount ?? raw.amount_minor ?? raw.value) : raw; const currency = typeof raw === "object" && raw && typeof (raw.currency ?? raw.currency_code) === "string" ? clean(raw.currency ?? raw.currency_code, 3).toUpperCase() : "EUR"; const numberValue = Number(amount); return Number.isFinite(numberValue) && numberValue >= 0 ? { amountMinor: Math.round(numberValue), currency: currency || "EUR" } : undefined; };
 const asArray = (value: unknown) => Array.isArray(value) ? value : [];
+const sceneTags = (value: unknown): string[] => {
+  const tokens: string[] = [];
+  const collect = (entry: unknown) => {
+    if (typeof entry === "string") { tokens.push(...entry.split(",")); return; }
+    if (Array.isArray(entry)) { entry.forEach(collect); return; }
+    if (entry && typeof entry === "object") { const tag = entry as Record<string, unknown>; collect(tag.value ?? tag.name ?? tag.label ?? tag.tags); }
+  };
+  collect(value);
+  return [...new Set(tokens.map((tag) => clean(tag, 80).toLowerCase()).filter((tag) => tag === "scene:everyday" || tag === "scene:office").map((tag) => tag.slice(6)))];
+};
 
 async function call(name: string, args: Record<string, unknown>) {
   const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 7000);
@@ -38,7 +48,7 @@ function card(raw: unknown, slot: Slot): CatalogCard | undefined {
   const primaryCategory = (asArray(product.categories)[0] as Record<string, unknown> | undefined)?.value;
   if (primaryCategory !== mapping[slot]) return undefined;
   const priceRange = (product.price_range ?? product.priceRange) as Record<string, unknown> | undefined; const price = money(product.price ?? priceRange?.min);
-  const scenes = asArray(product.tags).map((tag) => clean(tag, 80).toLowerCase()).filter((tag) => tag === "scene:everyday" || tag === "scene:office").map((tag) => tag.slice(6));
+  const scenes = sceneTags(product.tags);
   return { id, title, slot, scenes, image: safeImage(first(product.image, product.featured_image)) ?? mediaImage(product.media), price, available: product.available !== false && product.available_for_sale !== false && (product.availability as Record<string, unknown> | undefined)?.available !== false, productType: type || undefined };
 }
 function detail(raw: unknown, slot: Slot): CatalogProduct | undefined {
@@ -49,7 +59,7 @@ function detail(raw: unknown, slot: Slot): CatalogProduct | undefined {
 }
 async function cached<T>(key: string, ttl: number, fetcher: () => Promise<T>) { const item = cache.get(key); if (item && item.until > Date.now()) return item.value as T; const value = await fetcher(); if (cache.size > 256) cache.delete(cache.keys().next().value as string); cache.set(key, { until: Date.now() + ttl, value }); return value; }
 async function topLevelProducts() {
-  return cached("list:apparel-and-accessories-v6", 60_000, async () => {
+  return cached("list:apparel-and-accessories-v7", 0, async () => {
     const response = await call("search_catalog", { catalog: { filters: { categories: [topLevelCategory] } } });
     const byId = new Map<string, unknown>();
     for (const product of asArray(response.products)) { const id = clean((product as Record<string, unknown>).id, 256); if (id) byId.set(id, product); }

@@ -14,7 +14,6 @@ import { TryOnPanel } from "./TryOnPanel";
 type Props = {
   items: OutfitItem[];
   activeSlot: Slot;
-  revision: number;
   budget: number;
   total: number;
   lookupProduct: (id?: string) => Product | undefined;
@@ -35,7 +34,6 @@ type Props = {
 export function Canvas({
   items,
   activeSlot,
-  revision,
   budget,
   total,
   lookupProduct,
@@ -60,7 +58,6 @@ export function Canvas({
           <h2>Shared canvas</h2>
         </div>
         <div className="canvasheadcontrols">
-          <span className="revision">LIVE STATE · REV {revision}</span>
           <button
             className="emptycanvas"
             onClick={() => {

@@ -10,11 +10,11 @@ const safeImageUrl = (value: unknown) => { if (typeof value !== "string" || valu
 const imageMime = (body: Uint8Array, contentType: string) => { const png = body.length > 8 && body[0] === 137 && body[1] === 80 && body[2] === 78 && body[3] === 71; const jpeg = body.length > 3 && body[0] === 255 && body[1] === 216 && body[2] === 255; const webp = body.length > 12 && String.fromCharCode(...body.slice(0, 4)) === "RIFF" && String.fromCharCode(...body.slice(8, 12)) === "WEBP"; return png && contentType === "image/png" ? "image/png" : jpeg && contentType === "image/jpeg" ? "image/jpeg" : webp && contentType === "image/webp" ? "image/webp" : undefined; };
 async function productImageParts(products: PromptProduct[]) { const parts: { inlineData: { data: string; mimeType: string } }[] = []; for (const product of products) { const url = safeImageUrl(product.image); if (!url) continue; try { const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 8000); const response = await fetch(url, { signal: controller.signal, redirect: "error", headers: { Accept: "image/jpeg,image/png,image/webp" }, cache: "no-store" }); clearTimeout(timeout); const type = response.headers.get("content-type")?.split(";")[0].toLowerCase() ?? ""; const length = Number(response.headers.get("content-length") ?? 0); if (!response.ok || length > 5_000_000) continue; const bytes = new Uint8Array(await response.arrayBuffer()); if (bytes.length > 5_000_000) continue; const mimeType = imageMime(bytes, type); if (!mimeType) continue; parts.push({ inlineData: { data: Buffer.from(bytes).toString("base64"), mimeType } }); } catch { /* Text-only fallback is intentional. */ } } return parts; }
 
-const allowedOccasions = new Set(["Everyday", "Dinner", "Client Meeting", "Wedding", "Weekend"]);
+const allowedOccasions = new Set(["Everyday", "Office"]);
 const sceneByOccasion: Record<string, string> = {
   "Everyday": "a quiet sunlit city street with warm stone architecture",
   "Dinner": "an intimate, warmly lit restaurant terrace at golden hour",
-  "Client Meeting": "a calm contemporary office lobby with soft daylight and architectural lines",
+  "Office": "a calm contemporary office lobby with soft daylight and architectural lines",
   "Wedding": "an elegant garden reception with soft late-afternoon light",
   "Weekend": "a relaxed coastal café terrace with understated summer atmosphere",
 };

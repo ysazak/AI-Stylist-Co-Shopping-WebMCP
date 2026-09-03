@@ -1,7 +1,7 @@
 import { Slot } from "../catalog";
 
 export type Money = { amountMinor: number; currency: string };
-export type CatalogCard = { id: string; title: string; slot: Slot; image?: string; price?: Money; available: boolean; productType?: string };
+export type CatalogCard = { id: string; title: string; slot: Slot; image?: string; price?: Money; available: boolean; productType?: string; scenes: string[] };
 export type CatalogVariant = { id: string; title: string; available: boolean; price?: Money; selectedOptions: { name: string; value: string }[]; image?: string };
 export type CatalogProduct = CatalogCard & { description?: string; options: { name: string; values: string[] }[]; variants: CatalogVariant[] };
 
@@ -38,7 +38,8 @@ function card(raw: unknown, slot: Slot): CatalogCard | undefined {
   const primaryCategory = (asArray(product.categories)[0] as Record<string, unknown> | undefined)?.value;
   if (primaryCategory !== mapping[slot]) return undefined;
   const priceRange = (product.price_range ?? product.priceRange) as Record<string, unknown> | undefined; const price = money(product.price ?? priceRange?.min);
-  return { id, title, slot, image: safeImage(first(product.image, product.featured_image)) ?? mediaImage(product.media), price, available: product.available !== false && product.available_for_sale !== false && (product.availability as Record<string, unknown> | undefined)?.available !== false, productType: type || undefined };
+  const scenes = asArray(product.tags).map((tag) => clean(tag, 80).toLowerCase()).filter((tag) => tag === "scene:everyday" || tag === "scene:office").map((tag) => tag.slice(6));
+  return { id, title, slot, scenes, image: safeImage(first(product.image, product.featured_image)) ?? mediaImage(product.media), price, available: product.available !== false && product.available_for_sale !== false && (product.availability as Record<string, unknown> | undefined)?.available !== false, productType: type || undefined };
 }
 function detail(raw: unknown, slot: Slot): CatalogProduct | undefined {
   const base = card(raw, slot); if (!base) return undefined; const product = raw as Record<string, unknown>;

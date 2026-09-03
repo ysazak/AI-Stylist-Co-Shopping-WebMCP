@@ -32,7 +32,7 @@ export default function Home() {
   const update = (recipe: (current: Workspace) => Workspace) => setState((current) => recipe(current));
   const log = (current: Workspace, direction: Activity["direction"], name: string, detail: string): Workspace => ({ ...current, activity: [{ at: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }), direction, name, detail }, ...current.activity].slice(0, 18) });
   const human = (action: string, recipe: (current: Workspace) => Workspace) => update((current) => log({ ...recipe(current), revision: current.revision + 1, lastHumanAction: action }, "human", "shopper action", action));
-  const visibleCandidateIds = catalogStatus === "empty" ? [] : state.candidates[state.activeSlot];
+  const visibleCandidateIds = catalogStatus === "empty" ? [] : state.candidates[state.activeSlot].filter((id) => lookupProduct(id)?.scenes?.includes(state.occasion.toLowerCase()));
   const total = useMemo(() => state.items.reduce((sum, item) => sum + (lookupProduct(item.productId)?.price ?? 0), 0), [state.items, shopifyRegistry]);
 
   const addToCanvas = (id: string, product: Product, slot: Slot) => human(`Human selected ${product.name}`, (current) => ({ ...current, activeSlot: slot, items: [...current.items.filter((item) => item.slot !== slot), { slot, productId: id, source: "human", locked: false }] }));

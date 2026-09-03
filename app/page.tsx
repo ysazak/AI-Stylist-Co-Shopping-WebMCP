@@ -44,7 +44,7 @@ export default function Home() {
       const response = await fetch(`/api/catalog/product?slot=${slot}&id=${encodeURIComponent(id.slice(8))}`); const data = await response.json() as { product?: ShopifyDetail["product"] };
       if (!response.ok || !data.product) throw new Error("Product details are unavailable.");
       setShopifyDetail({ id, slot, product: data.product });
-    } catch { setCatalogStatus("fallback"); }
+    } catch { setCatalogStatus("unavailable"); }
   };
   const addShopifyVariant = (variantId: string) => {
     if (!shopifyDetail) return; const variant = shopifyDetail.product.variants?.find((item) => item.id === variantId && item.available); const current = lookupProduct(shopifyDetail.id); if (!variant || !current) return;

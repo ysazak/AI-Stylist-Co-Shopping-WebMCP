@@ -51,7 +51,7 @@ async function topLevelProducts() {
   return cached("list:apparel-and-accessories-v3", 60_000, async () => {
     const results: unknown[] = []; const seenCursors = new Set<string>(); let cursor: string | undefined;
     do {
-      const response = await call("search_catalog", { catalog: { context, filters: { categories: [topLevelCategory] }, pagination: { limit: 100, ...(cursor ? { cursor } : {}) } } });
+      const response = await call("search_catalog", { catalog: { filters: { categories: [topLevelCategory] } } });
       results.push(...asArray(response.products));
       const pagination = response.pagination as Record<string, unknown> | undefined; const next = clean(pagination?.next_cursor ?? pagination?.cursor ?? pagination?.end_cursor, 512);
       if (!pagination?.has_next_page || !next || seenCursors.has(next)) break; seenCursors.add(next); cursor = next;

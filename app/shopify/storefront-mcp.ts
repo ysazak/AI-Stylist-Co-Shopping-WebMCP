@@ -8,7 +8,7 @@ export type CatalogProduct = CatalogCard & { description?: string; options: { na
 const endpoint = "https://redaifoxes.myshopify.com/api/ucp/mcp";
 const profile = "https://shopify.dev/ucp/agent-profiles/examples/2026-08-25/valid-with-capabilities.json";
 const context = { address_country: "NL", language: "en" };
-const mapping: Record<Slot, string[]> = { top: ["gid://shopify/TaxonomyCategory/aa-1-13-8"], bottom: ["gid://shopify/TaxonomyCategory/aa-1-12-3"], shoes: ["gid://shopify/TaxonomyCategory/aa-8"], accessory: ["gid://shopify/TaxonomyCategory/aa-2-17-1", "gid://shopify/TaxonomyCategory/aa-2-27"] };
+const mapping: Record<Slot, string[]> = { top: ["gid://shopify/TaxonomyCategory/aa-1-13"], bottom: ["gid://shopify/TaxonomyCategory/aa-1-12"], shoes: ["gid://shopify/TaxonomyCategory/aa-8"], accessory: ["gid://shopify/TaxonomyCategory/aa-2"] };
 const topLevelCategory = "Apparel & Accessories";
 const taxonomyPrefixes: Record<Slot, string[]> = {
   top: ["gid://shopify/TaxonomyCategory/aa-1-13"],

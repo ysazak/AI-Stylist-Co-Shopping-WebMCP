@@ -16,12 +16,12 @@ A live `search_catalog` request to `https://redaifoxes.myshopify.com/api/ucp/mcp
 
 The four merchant-provided identifiers are used as `catalog.query` terms, not undocumented `filters` values. They are intentionally configurable in one server-only mapping:
 
-| Canvas slot | Display label | Shopify `catalog.query` |
-| --- | --- | --- |
-| `top` | Upper layer | `Clothing Tops` |
-| `bottom` | Trousers | `Pants` |
-| `shoes` | Footwear | `Shoes` |
-| `accessory` | Finishing touches | `Clothing Accessories` |
+| Canvas slot | Display label     | Shopify `catalog.query` |
+| ----------- | ----------------- | ----------------------- |
+| `top`       | Upper layer       | `Clothing Tops`         |
+| `bottom`    | Trousers          | `Pants`                 |
+| `shoes`     | Footwear          | `Shoes`                 |
+| `accessory` | Finishing touches | `Clothing Accessories`  |
 
 The server requests Shopify pages internally, follows each returned cursor until the category is exhausted, aggregates the full normalized category result, and sends `meta: { "ucp-agent": { profile } }` on every request. The initial buyer context is `address_country: "NL"` and `language: "en"`; it is part of the cache key. The server returns the merchant's product currency unchanged and the UI derives totals only when all selected items use that same currency. Different currencies show an unavailable total rather than a misleading conversion.
 
@@ -51,7 +51,10 @@ or a safe error. A successful empty array remains `source: "shopify"`. A failed 
 `GET /api/catalog/product?id=<encoded-id>&selected=<encoded-json>` accepts at most 2,048 URL-decoded characters for `selected`: a JSON array of at most 3 `{ name, label }` objects, where each trimmed value is 1–80 characters. Invalid JSON, duplicate names, unknown option names/labels, and non-string fields return 400. The client normalizes and sorts selections by option name before cache-key construction. It returns:
 
 ```ts
-{ source: "shopify"; product: CatalogProduct }
+{
+  source: "shopify";
+  product: CatalogProduct;
+}
 ```
 
 `CatalogCard` contains `id`, `title`, `image`, `price`, `currency`, `available`, and the mapped canvas slot. `CatalogProduct` additionally contains description, options, variants, each variant's ID, option values, price, currency, image, and purchasability. No raw Shopify response is sent to the browser. Merchant titles, descriptions, option labels, and materials are Unicode-normalized, control characters stripped, whitespace collapsed, and length-limited before UI or prompt use. Gemini receives labelled, quoted data fields with an instruction to treat them as product data, never instructions. Product images must be HTTPS and from `cdn.shopify.com` or the configured shop domain; invalid images use the existing neutral product-art fallback.

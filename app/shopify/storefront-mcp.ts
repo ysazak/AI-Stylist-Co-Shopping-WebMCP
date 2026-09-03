@@ -10,6 +10,13 @@ const profile = "https://shopify.dev/ucp/agent-profiles/examples/2026-08-25/vali
 const context = { address_country: "NL", language: "en" };
 const mapping: Record<Slot, string[]> = { top: ["gid://shopify/TaxonomyCategory/aa-1-13-8"], bottom: ["gid://shopify/TaxonomyCategory/aa-1-12-3"], shoes: ["gid://shopify/TaxonomyCategory/aa-8-8"], accessory: ["gid://shopify/TaxonomyCategory/aa-2-17-1", "gid://shopify/TaxonomyCategory/aa-2-27"] };
 const topLevelCategory = "Apparel & Accessories";
+const taxonomyPrefixes: Record<Slot, string[]> = {
+  top: ["gid://shopify/TaxonomyCategory/aa-1-13"],
+  bottom: ["gid://shopify/TaxonomyCategory/aa-1-12"],
+  shoes: ["gid://shopify/TaxonomyCategory/aa-8"],
+  accessory: ["gid://shopify/TaxonomyCategory/aa-2"],
+};
+const matchesSlotCategory = (slot: Slot, value: string) => mapping[slot].includes(value) || taxonomyPrefixes[slot].some((prefix) => value.startsWith(`${prefix}-`));
 const cache = new Map<string, { until: number; value: unknown }>();
 const clean = (value: unknown, max = 240) => typeof value === "string" ? value.normalize("NFKC").replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim().slice(0, max) : "";
 const first = (...values: unknown[]) => values.find((value) => typeof value === "string" && value.trim()) as string | undefined;
@@ -47,7 +54,7 @@ function card(raw: unknown, slot: Slot): CatalogCard | undefined {
   const type = clean(first(product.product_type, product.productType, product.category, product.taxonomy_category), 120);
   const categories = Array.isArray(product.categories) ? product.categories : [product.categories];
   const categoryValues = categories.map((category) => typeof category === "string" ? category : (category as Record<string, unknown> | undefined)?.value).filter((value): value is string => typeof value === "string");
-  if (!categoryValues.some((value) => mapping[slot].includes(value))) return undefined;
+  if (!categoryValues.some((value) => matchesSlotCategory(slot, value))) return undefined;
   const priceRange = (product.price_range ?? product.priceRange) as Record<string, unknown> | undefined; const price = money(product.price ?? priceRange?.min);
   const scenes = sceneTags(product.tags);
   return { id, title, slot, scenes, image: safeImage(first(product.image, product.featured_image)) ?? mediaImage(product.media), price, available: product.available !== false && product.available_for_sale !== false && (product.availability as Record<string, unknown> | undefined)?.available !== false, productType: type || undefined };
@@ -60,10 +67,16 @@ function detail(raw: unknown, slot: Slot): CatalogProduct | undefined {
 }
 async function cached<T>(key: string, ttl: number, fetcher: () => Promise<T>) { const item = cache.get(key); if (item && item.until > Date.now()) return item.value as T; const value = await fetcher(); if (cache.size > 256) cache.delete(cache.keys().next().value as string); cache.set(key, { until: Date.now() + ttl, value }); return value; }
 async function topLevelProducts() {
-  return cached("list:apparel-and-accessories-v7", 0, async () => {
-    const response = await call("search_catalog", { catalog: { filters: { categories: [topLevelCategory] } } });
-    const byId = new Map<string, unknown>();
-    for (const product of asArray(response.products)) { const id = clean((product as Record<string, unknown>).id, 256); if (id) byId.set(id, product); }
+  return cached("list:apparel-and-accessories-v8", 0, async () => {
+    const byId = new Map<string, unknown>(); const visited = new Set<string>(); let cursor: string | undefined; let hasNextPage = true; let page = 0;
+    while (hasNextPage && page++ < 20) {
+      const pagination: Record<string, unknown> = { limit: 250 }; if (cursor) pagination.cursor = cursor;
+      const response = await call("search_catalog", { catalog: { filters: { categories: [topLevelCategory] }, pagination } });
+      for (const product of asArray(response.products)) { const id = clean((product as Record<string, unknown>).id, 256); if (id) byId.set(id, product); }
+      const metadata = response.pagination as Record<string, unknown> | undefined; const nextCursor = clean(metadata?.cursor, 4096);
+      hasNextPage = (metadata?.has_next_page === true || metadata?.hasNextPage === true) && Boolean(nextCursor) && !visited.has(nextCursor);
+      if (nextCursor) visited.add(nextCursor); cursor = nextCursor || undefined;
+    }
     return [...byId.values()];
   });
 }export async function listProducts(slot: Slot) { return (await topLevelProducts()).map((item) => card(item, slot)).filter((item): item is CatalogCard => Boolean(item)); }export async function getProduct(productId: string, slot: Slot) { return cached(`product:${slot}:${productId}`, 15_000, async () => { const response = await call("get_product", { catalog: { id: productId, context } }); const raw = (response.product ?? asArray(response.products)[0]); const result = detail(raw, slot); if (!result) throw new Error("product_not_found"); return result; }); }

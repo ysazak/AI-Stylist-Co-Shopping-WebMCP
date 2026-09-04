@@ -1,6 +1,6 @@
 # Make This Look Mine - AI Stylist
 
-A co-shopping demo built for the [OpenAI WebMCP Challenge](https://openai.com/webmcp-challenge/). The shopper and a connected AI stylist act on **one visible outfit workspace**: every selection, lock, budget, occasion, and fitting-appointment update is live shared state — the agent never works from a hidden copy of the page.
+A co-shopping demo built for the [OpenAI WebMCP Challenge](https://openai.com/webmcp-challenge/). The shopper and a connected AI stylist act on **one visible outfit workspace**: every selection, budget, occasion, and fitting-appointment update is live shared state — the agent never works from a hidden copy of the page.
 
 ## Run locally
 
